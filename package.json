@@ -1,0 +1,16 @@
+{
+  "name": "smartvault",
+  "version": "1.0.0",
+  "description": "SmartVault - Full-Stack Document Management System",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "npm run server",
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
