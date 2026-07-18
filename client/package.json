@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "axios": "^1.4.0",
+    "framer-motion": "^10.12.16",
+    "lucide-react": "^0.268.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

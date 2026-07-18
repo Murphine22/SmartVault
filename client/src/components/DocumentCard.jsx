@@ -1,5 +1,6 @@
 import React from 'react';
 import { File, FileText, Image as ImageIcon, Download, Share2, Trash2, MoreVertical } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
   const getIcon = (format) => {
@@ -21,9 +22,14 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '20px', position: 'relative', transition: 'transform 0.2s', cursor: 'pointer' }}
-         onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+    <motion.div
+      className="glass-panel"
+      style={{ padding: '20px', position: 'relative', cursor: 'pointer' }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -6, scale: 1.02 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+    >
       
       <div className="flex-between" style={{ marginBottom: '16px' }}>
         <div style={{
@@ -63,7 +69,7 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
           <Trash2 size={14} />
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

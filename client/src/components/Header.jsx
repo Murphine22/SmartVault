@@ -1,12 +1,14 @@
 import React from 'react';
 import { Search, Bell, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 const Header = () => {
   const { user, logout } = useAuth();
 
   return (
-    <header style={{
+    <motion.header
+      style={{
       height: 'var(--header-height)',
       display: 'flex',
       alignItems: 'center',
@@ -54,7 +56,7 @@ const Header = () => {
           </button>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 
