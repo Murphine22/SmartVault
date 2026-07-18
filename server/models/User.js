@@ -10,6 +10,9 @@ const userSchema = new mongoose.Schema({
   storageLimit: { type: Number, default: 52428800 } // Default 50MB
 }, { timestamps: true });
 
+// Store refresh tokens for issued refresh tokens (simple allowlist)
+userSchema.add({ refreshTokens: { type: [String], default: [] } });
+
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) return next();
   try {
