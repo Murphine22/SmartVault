@@ -59,6 +59,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    try {
+      api.post('/auth/logout');
+    } catch (e) {
+      // ignore
+    }
     setUser(null);
     localStorage.removeItem('userInfo');
   };
