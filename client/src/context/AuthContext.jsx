@@ -41,9 +41,14 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
     if (data.success) {
-      setUser(data);
-      localStorage.setItem('userInfo', JSON.stringify(data));
-      return data;
+      const authData = {
+        ...data,
+        user: data.user,
+        token: data.token,
+      };
+      setUser(authData.user);
+      localStorage.setItem('userInfo', JSON.stringify(authData));
+      return authData;
     }
     throw new Error('Login failed');
   };
@@ -51,9 +56,14 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     const { data } = await api.post('/auth/register', { name, email, password });
     if (data.success) {
-      setUser(data);
-      localStorage.setItem('userInfo', JSON.stringify(data));
-      return data;
+      const authData = {
+        ...data,
+        user: data.user,
+        token: data.token,
+      };
+      setUser(authData.user);
+      localStorage.setItem('userInfo', JSON.stringify(authData));
+      return authData;
     }
     throw new Error('Registration failed');
   };

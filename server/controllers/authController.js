@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const userStore = require('../utils/userStore');
 const { validationResult } = require('express-validator');
 
 // Generate a signed JWT that includes the user's identity and role.
@@ -24,6 +26,59 @@ const generateRefreshToken = (user) => {
   );
 };
 
+const isDatabaseReady = () => mongoose.connection.readyState === 1;
+
+const createUserRecord = async (userData) => {
+  if (isDatabaseReady()) {
+    return User.create(userData);
+  }
+
+  return userStore.createUser(userData);
+};
+
+const findUserRecordByEmail = async (email) => {
+  if (isDatabaseReady()) {
+    return User.findOne({ email });
+  }
+
+  return userStore.findUserByEmail(email);
+};
+
+const findUserRecordById = async (id) => {
+  if (isDatabaseReady()) {
+    return User.findById(id);
+  }
+
+  return userStore.findUserById(id);
+};
+
+const saveRefreshToken = async (user, refreshToken) => {
+  if (isDatabaseReady()) {
+    user.refreshTokens.push(refreshToken);
+    await user.save();
+    return user;
+  }
+
+  return userStore.addRefreshToken(user._id, refreshToken);
+};
+
+const clearRefreshToken = async (user, refreshToken) => {
+  if (isDatabaseReady()) {
+    user.refreshTokens = user.refreshTokens.filter((storedToken) => storedToken !== refreshToken);
+    await user.save();
+    return user;
+  }
+
+  return userStore.removeRefreshToken(user._id, refreshToken);
+};
+
+const serializeUser = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+});
+
 // Register a new user and return a JWT.
 exports.registerUser = async (req, res) => {
   const errors = validationResult(req);
@@ -35,12 +90,12 @@ exports.registerUser = async (req, res) => {
 
   try {
     const normalizedEmail = email.toLowerCase();
-    const userExists = await User.findOne({ email: normalizedEmail });
+    const userExists = await findUserRecordByEmail(normalizedEmail);
     if (userExists) {
       return res.status(409).json({ success: false, message: 'User already exists' });
     }
 
-    const user = await User.create({
+    const user = await createUserRecord({
       name,
       email: normalizedEmail,
       password,
@@ -50,8 +105,7 @@ exports.registerUser = async (req, res) => {
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    user.refreshTokens.push(refreshToken);
-    await user.save();
+    await saveRefreshToken(user, refreshToken);
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -63,12 +117,7 @@ exports.registerUser = async (req, res) => {
     return res.status(201).json({
       success: true,
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: serializeUser(user),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to register user', error: error.message });
@@ -85,7 +134,7 @@ exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await findUserRecordByEmail(email.toLowerCase());
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -98,8 +147,7 @@ exports.loginUser = async (req, res) => {
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    user.refreshTokens.push(refreshToken);
-    await user.save();
+    await saveRefreshToken(user, refreshToken);
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -111,12 +159,7 @@ exports.loginUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: serializeUser(user),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Login failed', error: error.message });
@@ -126,12 +169,14 @@ exports.loginUser = async (req, res) => {
 // Get the authenticated user's profile.
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await findUserRecordById(req.user._id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    return res.status(200).json({ success: true, user });
+    const safeUser = { ...user.toObject ? user.toObject() : user };
+    delete safeUser.password;
+    return res.status(200).json({ success: true, user: safeUser });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to load profile', error: error.message });
   }
@@ -141,7 +186,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    const user = await User.findById(req.user._id);
+    const user = await findUserRecordById(req.user._id);
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -149,7 +194,7 @@ exports.updateProfile = async (req, res) => {
 
     if (name) user.name = name;
     if (email) {
-      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      const existingUser = await findUserRecordByEmail(email.toLowerCase());
       if (existingUser && existingUser._id.toString() !== user._id.toString()) {
         return res.status(409).json({ success: false, message: 'Email already in use' });
       }
@@ -159,16 +204,13 @@ exports.updateProfile = async (req, res) => {
       user.password = password;
     }
 
-    await user.save();
+    if (isDatabaseReady()) {
+      await user.save();
+    }
 
     return res.status(200).json({
       success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: serializeUser(user),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to update profile', error: error.message });
@@ -184,7 +226,7 @@ exports.refreshToken = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    const user = await User.findById(decoded.userId || decoded.id);
+    const user = await findUserRecordById(decoded.userId || decoded.id);
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
@@ -206,10 +248,9 @@ exports.logout = async (req, res) => {
     const token = req.cookies.refreshToken;
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-      const user = await User.findById(decoded.userId || decoded.id);
+      const user = await findUserRecordById(decoded.userId || decoded.id);
       if (user) {
-        user.refreshTokens = user.refreshTokens.filter((storedToken) => storedToken !== token);
-        await user.save();
+        await clearRefreshToken(user, token);
       }
     }
 

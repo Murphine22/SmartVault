@@ -11,6 +11,7 @@
     "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.22.0",
     "concurrently": "^8.2.2"
   }
 }
