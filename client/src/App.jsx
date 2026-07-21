@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
 // Layout
@@ -19,10 +19,14 @@ import FolderExplorer from './pages/FolderExplorer';
 import AdminPanel from './pages/AdminPanel';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import TrashPage from './pages/TrashPage';
 
 const App = () => {
   const { user, loading } = useAuth();
-  const bypassAuth = true;
+  const location = useLocation();
+  const isAuthenticated = Boolean(user);
+  const publicRoutes = ['/login', '/register', '/landing'];
+  const isPublicRoute = publicRoutes.includes(location.pathname);
 
   if (loading) {
     return (
@@ -32,20 +36,32 @@ const App = () => {
     );
   }
 
-  const effectiveUser = bypassAuth ? { name: 'Demo User' } : user;
+  if (!isAuthenticated && !isPublicRoute) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isAuthenticated && (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/landing')) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/landing" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="app-container">
-      {effectiveUser && <Sidebar />}
-      <div className="main-content" style={{ marginLeft: effectiveUser ? 'var(--sidebar-width)' : '0' }}>
-        {effectiveUser && <Header />}
-        
+      <Sidebar />
+      <div className="main-content" style={{ marginLeft: 'var(--sidebar-width)' }}>
+        <Header />
         <div style={{ padding: '24px', flex: 1, position: 'relative' }}>
           <Routes>
-            <Route path="/landing" element={<Landing />} />
-            <Route path="/login" element={<Navigate to="/" />} />
-            <Route path="/register" element={<Navigate to="/" />} />
-            
             <Route path="/" element={<Dashboard />} />
             <Route path="/workspace" element={<Workspace />} />
             <Route path="/documents" element={<MyDocuments />} />
@@ -55,9 +71,11 @@ const App = () => {
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
-            
-            {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="/trash" element={<TrashPage />} />
+            <Route path="/landing" element={<Navigate to="/" replace />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/register" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const userStore = require('../utils/userStore');
 const { validationResult } = require('express-validator');
+const { sendInvitationEmail } = require('../utils/mailer');
 
 // Generate a signed JWT that includes the user's identity and role.
 const generateToken = (user) => {
@@ -12,7 +13,7 @@ const generateToken = (user) => {
       email: user.email,
       role: user.role,
     },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || 'dev-jwt-secret',
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
@@ -21,7 +22,7 @@ const generateToken = (user) => {
 const generateRefreshToken = (user) => {
   return jwt.sign(
     { userId: user._id, type: 'refresh' },
-    process.env.JWT_REFRESH_SECRET,
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'dev-refresh-secret',
     { expiresIn: '7d' }
   );
 };
@@ -113,21 +114,38 @@ exports.registerUser = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
   }
 
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, inviteToken } = req.body;
 
   try {
     const normalizedEmail = email.toLowerCase();
+    const invitedUser = inviteToken ? await User.findOne({ invitationToken: inviteToken, email: normalizedEmail }) : null;
     const userExists = await findUserRecordByEmail(normalizedEmail);
-    if (userExists) {
+
+    if (userExists && !invitedUser) {
       return res.status(409).json({ success: false, message: 'User already exists' });
     }
 
-    const user = await createUserRecord({
-      name,
-      email: normalizedEmail,
-      password,
-      role: role === 'admin' ? 'admin' : 'user',
-    });
+    let user;
+    if (invitedUser) {
+      invitedUser.name = name;
+      invitedUser.email = normalizedEmail;
+      invitedUser.password = password;
+      invitedUser.role = role === 'admin' ? 'admin' : 'user';
+      invitedUser.isInvited = true;
+      invitedUser.invitationAcceptedAt = new Date();
+      invitedUser.invitationToken = null;
+      if (isDatabaseReady()) {
+        await invitedUser.save();
+      }
+      user = invitedUser;
+    } else {
+      user = await createUserRecord({
+        name,
+        email: normalizedEmail,
+        password,
+        role: role === 'admin' ? 'admin' : 'user',
+      });
+    }
 
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -170,21 +188,37 @@ exports.inviteMember = async (req, res) => {
 
     const tempPassword = `${name.replace(/\s+/g, '').toLowerCase()}123!`;
     const normalizedRole = role === 'admin' ? 'admin' : 'user';
+    const invitationToken = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const user = await createUserRecord({
       name,
       email: normalizedEmail,
       password: tempPassword,
       role: normalizedRole,
+      isInvited: true,
+      invitedBy: req.user._id,
+      invitationToken,
     });
 
     if (!user) {
       return res.status(500).json({ success: false, message: 'Failed to create invited member' });
     }
 
+    try {
+      await sendInvitationEmail({
+        to: normalizedEmail,
+        inviteeName: name,
+        inviteLink: `${process.env.APP_URL || 'http://localhost:3000'}/register?invite=${invitationToken}`,
+        inviterName: req.user?.name || 'An admin',
+      });
+    } catch (emailError) {
+      console.warn('Invitation email failed:', emailError.message);
+    }
+
     return res.status(201).json({
       success: true,
       user: serializeUser(user),
       temporaryPassword: tempPassword,
+      invitationToken,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to invite member', error: error.message });
@@ -225,6 +259,36 @@ exports.listUsers = async (req, res) => {
 };
 
 // Log in an existing user and return a JWT.
+exports.removeMember = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Member id is required' });
+    }
+
+    if (isDatabaseReady()) {
+      try {
+        const removedUser = await User.findByIdAndDelete(id);
+        if (!removedUser) {
+          return res.status(404).json({ success: false, message: 'Member not found' });
+        }
+        return res.status(200).json({ success: true, message: 'Member removed' });
+      } catch (error) {
+        console.warn('MongoDB member removal failed, using fallback store:', error.message);
+      }
+    }
+
+    await userStore.deleteUser(id);
+    return res.status(200).json({ success: true, message: 'Member removed' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to remove member', error: error.message });
+  }
+};
+
 exports.loginUser = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

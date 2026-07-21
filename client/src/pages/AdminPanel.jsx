@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Users, Activity, PlusCircle } from 'lucide-react';
+import { ShieldCheck, Users, Activity, PlusCircle, Trash2 } from 'lucide-react';
 import api from '../services/api';
 
 const stats = [
@@ -54,6 +54,17 @@ const AdminPanel = () => {
     }
   };
 
+  const removeMember = async (memberId) => {
+    try {
+      const { data } = await api.delete(`/auth/users/${memberId}`);
+      if (data.success) {
+        setMembers((prev) => prev.filter((member) => member._id !== memberId));
+      }
+    } catch (error) {
+      console.error('Failed to remove member', error);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <h1 style={{ fontSize: '1.8rem', marginBottom: '8px' }}>Admin panel</h1>
@@ -92,12 +103,17 @@ const AdminPanel = () => {
           {members.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>No users found yet.</p>
           ) : members.map((member) => (
-            <div key={member._id || member.email} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)' }}>
+            <div key={member._id || member.email} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', gap: '12px' }}>
               <div>
                 <p style={{ fontWeight: 600 }}>{member.name}</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{member.email}</p>
               </div>
-              <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{member.role === 'admin' ? 'Admin' : 'User'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{member.role === 'admin' ? 'Admin' : 'User'}</span>
+                <button className="btn" style={{ padding: '6px 10px', background: 'rgba(239,68,68,0.12)', color: 'var(--accent-red)' }} onClick={() => removeMember(member._id)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           ))}
         </div>

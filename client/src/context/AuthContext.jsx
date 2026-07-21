@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
-import { useAuth0 } from '@auth0/auth0-react';
 
 const AuthContext = createContext();
 
@@ -9,34 +8,39 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { user: auth0User, isAuthenticated: isAuth0Authenticated, getAccessTokenSilently } = useAuth0();
 
   useEffect(() => {
-    // Check local storage first
-    const userInfo = localStorage.getItem('userInfo');
-    if (userInfo) {
-      setUser(JSON.parse(userInfo));
-    }
-    setLoading(false);
-  }, []);
+    const restoreSession = async () => {
+      try {
+        const rawUserInfo = localStorage.getItem('userInfo');
+        if (!rawUserInfo) {
+          setUser(null);
+          return;
+        }
 
-  // Sync Auth0 state with our user state if Auth0 is used
-  useEffect(() => {
-    const syncAuth0 = async () => {
-      if (isAuth0Authenticated && auth0User && !user) {
-        // Here we could register/login the Auth0 user in our backend
-        // For simplicity in this demo, we mock the local state setup
-        const mockUser = {
-          _id: auth0User.sub,
-          name: auth0User.name,
-          email: auth0User.email,
-          authProvider: 'auth0'
-        };
-        setUser(mockUser);
+        const parsedUserInfo = JSON.parse(rawUserInfo);
+        if (!parsedUserInfo?.token) {
+          throw new Error('No auth token found');
+        }
+
+        const { data } = await api.get('/auth/profile');
+        if (data?.success && data?.user) {
+          setUser(data.user);
+          localStorage.setItem('userInfo', JSON.stringify({ ...parsedUserInfo, user: data.user }));
+        } else {
+          throw new Error('Invalid profile response');
+        }
+      } catch (error) {
+        console.warn('Session restore failed', error);
+        setUser(null);
+        localStorage.removeItem('userInfo');
+      } finally {
+        setLoading(false);
       }
     };
-    syncAuth0();
-  }, [isAuth0Authenticated, auth0User]);
+
+    restoreSession();
+  }, []);
 
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
@@ -53,8 +57,8 @@ export const AuthProvider = ({ children }) => {
     throw new Error('Login failed');
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await api.post('/auth/register', { name, email, password });
+  const register = async (name, email, password, inviteToken) => {
+    const { data } = await api.post('/auth/register', { name, email, password, inviteToken });
     if (data.success) {
       const authData = {
         ...data,
@@ -68,18 +72,36 @@ export const AuthProvider = ({ children }) => {
     throw new Error('Registration failed');
   };
 
-  const logout = () => {
-    try {
-      api.post('/auth/logout');
-    } catch (e) {
-      // ignore
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+    const stored = localStorage.getItem('userInfo');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const next = { ...parsed, user: updatedUser, token: parsed.token };
+      localStorage.setItem('userInfo', JSON.stringify(next));
     }
-    setUser(null);
-    localStorage.removeItem('userInfo');
+  };
+
+  const logout = async () => {
+    try {
+      const stored = localStorage.getItem('userInfo');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.token) {
+          await api.post('/auth/logout', {}, { withCredentials: true });
+        }
+      }
+    } catch (e) {
+      console.warn('Logout request failed', e);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('userInfo');
+      window.location.href = '/login';
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

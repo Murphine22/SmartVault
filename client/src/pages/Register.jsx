@@ -1,21 +1,35 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Shield, ArrowRight, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
+  const location = useLocation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [inviteToken, setInviteToken] = useState('');
+  const [invitedMessage, setInvitedMessage] = useState('');
   const { register } = useAuth();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tokenFromUrl = params.get('invite');
+    if (tokenFromUrl) {
+      setInviteToken(tokenFromUrl);
+      setInvitedMessage('Your invitation has been detected. Complete your onboarding below.');
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      await register(name, email, password);
+      await register(name, email, password, inviteToken || undefined);
     } catch (err) {
-      setError('Failed to register. Email might be in use.');
+      const message = err?.response?.data?.message || 'Failed to register. Email might be in use.';
+      setError(message);
     }
   };
 
@@ -60,6 +74,16 @@ const Register = () => {
             marginBottom: '20px', fontSize: '0.9rem', textAlign: 'center'
           }}>
             {error}
+          </div>
+        )}
+
+        {invitedMessage && (
+          <div style={{
+            background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.2)',
+            color: '#1d4ed8', padding: '12px', borderRadius: '8px',
+            marginBottom: '20px', fontSize: '0.9rem', textAlign: 'center'
+          }}>
+            {invitedMessage}
           </div>
         )}
 

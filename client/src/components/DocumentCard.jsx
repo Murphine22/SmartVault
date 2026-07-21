@@ -1,5 +1,5 @@
 import React from 'react';
-import { File, FileText, Image as ImageIcon, Download, Share2, Trash2, MoreVertical } from 'lucide-react';
+import { File, FileText, Image as ImageIcon, Download, Share2, Trash2, MoreVertical, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
@@ -59,10 +59,15 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
         {formatSize(document.size)} • {new Date(document.createdAt).toLocaleDateString()}
       </p>
 
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-blue)' }}>
           {document.category}
         </span>
+        {document.sharedWith?.length > 0 && (
+          <span style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-green)' }}>
+            Shared
+          </span>
+        )}
       </div>
 
       <div style={{ marginTop: '20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
@@ -71,6 +76,9 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
         </button>
         <button type="button" className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)' }} onClick={(event) => { event.stopPropagation(); onShare(document); }}>
           <Share2 size={14} />
+        </button>
+        <button type="button" className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)' }} onClick={(event) => { event.stopPropagation(); onShare(document); }}>
+          <Pencil size={14} />
         </button>
         <button type="button" className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-red)' }} onClick={(event) => { event.stopPropagation(); onDelete(document._id); }}>
           <Trash2 size={14} />

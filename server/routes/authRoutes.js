@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getProfile, updateProfile, refreshToken, logout, inviteMember, listUsers } = require('../controllers/authController');
+const { registerUser, loginUser, getProfile, updateProfile, refreshToken, logout, inviteMember, listUsers, removeMember } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { body } = require('express-validator');
 
@@ -19,6 +19,7 @@ const validateLogin = [
 router.post('/register', validateRegister, registerUser);
 router.post('/invite', protect, inviteMember);
 router.get('/users', protect, listUsers);
+router.delete('/users/:id', protect, removeMember);
 router.post('/login', validateLogin, loginUser);
 router.post('/refresh', refreshToken);
 router.post('/logout', logout);

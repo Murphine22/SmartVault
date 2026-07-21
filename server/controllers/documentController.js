@@ -109,8 +109,8 @@ exports.uploadDocument = async (req, res) => {
 
 exports.getDocuments = async (req, res) => {
   try {
-    const { category, search, isArchived } = req.query;
-    let query = { 
+    const { category, search, isArchived, view = 'active' } = req.query;
+    let query = {
       $or: [
         { owner: req.user._id },
         { accessLevel: 'public' },
@@ -118,8 +118,8 @@ exports.getDocuments = async (req, res) => {
       ]
     };
 
-    if (isArchived) query.isArchived = isArchived === 'true';
-    else query.isArchived = false;
+    const archivedFlag = isArchived ?? (view === 'trash' ? 'true' : 'false');
+    query.isArchived = archivedFlag === 'true';
 
     if (category) query.category = category;
     if (search) {
@@ -242,7 +242,7 @@ exports.deleteDocument = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Not authorized' });
     }
 
-    const shouldHardDelete = req.query.hard === 'true' || req.query.mode === 'permanent' || true;
+    const shouldHardDelete = req.query.hard === 'true' || req.query.mode === 'permanent';
 
     if (shouldHardDelete) {
       if (isDatabaseReady()) {
@@ -259,22 +259,64 @@ exports.deleteDocument = async (req, res) => {
       } else {
         await documentStore.deleteDocument(req.params.id);
       }
-    } else {
-      if (isDatabaseReady()) {
-        try {
-          doc.isArchived = true;
-          await doc.save();
-          await Activity.create({ user: req.user._id, action: 'delete', document: doc._id, details: 'Moved to trash' });
-        } catch (error) {
-          console.warn('MongoDB soft delete failed, using fallback store:', error.message);
-          await documentStore.updateDocument(req.params.id, { isArchived: true });
-        }
-      } else {
+      return res.json({ success: true, message: 'Document deleted permanently' });
+    }
+
+    if (isDatabaseReady()) {
+      try {
+        doc.isArchived = true;
+        await doc.save();
+        await Activity.create({ user: req.user._id, action: 'delete', document: doc._id, details: 'Moved to trash' });
+      } catch (error) {
+        console.warn('MongoDB soft delete failed, using fallback store:', error.message);
         await documentStore.updateDocument(req.params.id, { isArchived: true });
+      }
+    } else {
+      await documentStore.updateDocument(req.params.id, { isArchived: true });
+    }
+
+    res.json({ success: true, message: 'Document moved to trash' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.restoreDocument = async (req, res) => {
+  try {
+    let doc;
+    if (isDatabaseReady()) {
+      try {
+        doc = await Document.findById(req.params.id);
+      } catch (error) {
+        console.warn('MongoDB document lookup failed, using fallback store:', error.message);
       }
     }
 
-    res.json({ success: true, message: 'Document removed permanently' });
+    if (!doc) {
+      const fallbackDoc = (await documentStore.listDocuments({ owner: req.user._id })).find((item) => item._id === req.params.id);
+      if (!fallbackDoc) return res.status(404).json({ success: false, message: 'Document not found' });
+      if (fallbackDoc.owner.toString() !== req.user._id.toString()) {
+        return res.status(401).json({ success: false, message: 'Not authorized' });
+      }
+      doc = fallbackDoc;
+    } else if (doc.owner.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    if (isDatabaseReady()) {
+      try {
+        doc.isArchived = false;
+        await doc.save();
+        await Activity.create({ user: req.user._id, action: 'restore', document: doc._id, details: 'Restored from trash' });
+      } catch (error) {
+        console.warn('MongoDB restore failed, using fallback store:', error.message);
+        await documentStore.updateDocument(req.params.id, { isArchived: false });
+      }
+    } else {
+      await documentStore.updateDocument(req.params.id, { isArchived: false });
+    }
+
+    res.json({ success: true, message: 'Document restored' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

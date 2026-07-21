@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import api from '../services/api';
 import DocumentCard from '../components/DocumentCard';
 import sampleDocuments from '../data/sampleDocuments';
@@ -11,28 +11,34 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadError, setUploadError] = useState('');
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [docRes, statRes] = await Promise.all([
+        api.get('/documents'),
+        api.get('/analytics/dashboard')
+      ]);
+      const serverDocs = Array.isArray(docRes?.data?.data) ? docRes.data.data : [];
+      const seededDocs = serverDocs.length > 0 ? serverDocs : sampleDocuments;
+      setDocuments(seededDocs);
+      setStats(statRes?.data?.data || { totalFiles: seededDocs.length });
+    } catch (error) {
+      console.error('Error fetching data', error);
+      setDocuments(sampleDocuments);
+      setStats({ totalFiles: sampleDocuments.length });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [docRes, statRes] = await Promise.all([
-          api.get('/documents'),
-          api.get('/analytics/dashboard')
-        ]);
-        const serverDocs = Array.isArray(docRes?.data?.data) ? docRes.data.data : [];
-        const seededDocs = serverDocs.length > 0 ? serverDocs : sampleDocuments;
-        setDocuments(seededDocs);
-        setStats(statRes?.data?.data || { totalFiles: seededDocs.length });
-      } catch (error) {
-        console.error('Error fetching data', error);
-        setDocuments(sampleDocuments);
-        setStats({ totalFiles: sampleDocuments.length });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleDelete = async (id) => {
     const confirmed = window.confirm('Remove this document from your vault?');
@@ -104,31 +110,54 @@ const Dashboard = () => {
     window.prompt('Copy this link to share the document', shareUrl);
   };
 
-  const handleUpload = (event) => {
+  const handleUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const newDoc = {
-      _id: `local-${Date.now()}`,
-      title: file.name,
-      category: 'Uploaded',
-      format: file.name.split('.').pop()?.toLowerCase() || 'pdf',
-      size: file.size,
-      createdAt: new Date().toISOString(),
-      tags: ['uploaded', 'new'],
-      fileUrl: '#',
-    };
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', file.name.replace(/\.[^.]+$/, ''));
+    formData.append('description', 'Uploaded from the web app');
+    formData.append('category', 'Uploaded');
+    formData.append('tags', 'uploaded,new');
 
-    setDocuments((prevDocs) => [newDoc, ...prevDocs]);
-    setStats((prev) => prev ? { ...prev, totalFiles: (prev.totalFiles || 0) + 1 } : { totalFiles: 1 });
+    setIsUploading(true);
+    setUploadMessage('');
+    setUploadError('');
+
+    try {
+      const response = await api.post('/documents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const uploadedDoc = response?.data?.data;
+      const backendMessage = response?.data?.message;
+
+      if (uploadedDoc) {
+        setDocuments((prevDocs) => [uploadedDoc, ...prevDocs]);
+        setStats((prev) => prev ? { ...prev, totalFiles: (prev.totalFiles || 0) + 1 } : { totalFiles: 1 });
+      }
+
+      await fetchData();
+      setUploadMessage(backendMessage || 'Upload complete and synced to the live backend.');
+    } catch (error) {
+      console.error('Upload failed', error);
+      const message = error?.response?.data?.message || 'Upload failed. Please try again.';
+      setUploadError(message);
+    } finally {
+      setIsUploading(false);
+      event.target.value = '';
+    }
   };
 
   const allTags = ['all', ...new Set(documents.flatMap((doc) => doc.tags || []))];
+  const allCategories = ['all', ...new Set(documents.map((doc) => doc.category || 'Uncategorized'))];
   const tagCount = new Set(documents.flatMap((doc) => doc.tags || [])).size;
   const filteredDocs = documents.filter((doc) => {
     const matchesSearch = `${doc.title} ${doc.category} ${(doc.tags || []).join(' ')}`.toLowerCase().includes(search.toLowerCase());
     const matchesTag = selectedTag === 'all' || (doc.tags || []).includes(selectedTag);
-    return matchesSearch && matchesTag;
+    const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
+    return matchesSearch && matchesTag && matchesCategory;
   });
 
   if (loading) return <div>Loading...</div>;
@@ -149,12 +178,18 @@ const Dashboard = () => {
               <span className="chip">🔒 Secure sharing</span>
             </div>
           </div>
-          <label className="btn btn-primary" style={{ cursor: 'pointer', minWidth: '190px' }}>
-            <Plus size={18} /> Upload Document
-            <input type="file" onChange={handleUpload} style={{ display: 'none' }} />
+          <label className={`btn btn-primary ${isUploading ? 'disabled' : ''}`} style={{ cursor: isUploading ? 'wait' : 'pointer', minWidth: '190px', opacity: isUploading ? 0.75 : 1 }}>
+            <Plus size={18} /> {isUploading ? 'Uploading...' : 'Upload Document'}
+            <input type="file" onChange={handleUpload} style={{ display: 'none' }} disabled={isUploading} />
           </label>
         </div>
       </div>
+
+      {(uploadMessage || uploadError) && (
+        <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '12px', border: `1px solid ${uploadError ? 'rgba(248, 113, 113, 0.35)' : 'rgba(52, 211, 153, 0.35)'}`, background: uploadError ? 'rgba(248, 113, 113, 0.12)' : 'rgba(52, 211, 153, 0.12)', color: uploadError ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+          {uploadError || uploadMessage}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         <div className="stat-card">
@@ -209,6 +244,11 @@ const Dashboard = () => {
           <select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)} style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-primary)' }}>
             {allTags.map((tag) => (
               <option key={tag} value={tag}>{tag === 'all' ? 'All tags' : tag}</option>
+            ))}
+          </select>
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-primary)' }}>
+            {allCategories.map((category) => (
+              <option key={category} value={category}>{category === 'all' ? 'All categories' : category}</option>
             ))}
           </select>
         </div>

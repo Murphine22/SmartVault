@@ -56,6 +56,13 @@ const removeRefreshToken = async (id, token) => {
   return user;
 };
 
+const deleteUser = async (id) => {
+  const index = users.findIndex((user) => user._id === id);
+  if (index === -1) return null;
+  const [removed] = users.splice(index, 1);
+  return removed;
+};
+
 const clearInMemoryUsers = () => {
   users.length = 0;
 };
@@ -68,5 +75,6 @@ module.exports = {
   listUsers,
   addRefreshToken,
   removeRefreshToken,
+  deleteUser,
   clearInMemoryUsers,
 };
