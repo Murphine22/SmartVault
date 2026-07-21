@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import DocumentCard from '../components/DocumentCard';
 import sampleDocuments from '../data/sampleDocuments';
+import { createFallbackDownloadContent, createSafeFileName, createShareUrl } from '../utils/documentActions';
 import { UploadCloud, Plus, FileText, Search } from 'lucide-react';
 
 const Dashboard = () => {
@@ -34,12 +35,73 @@ const Dashboard = () => {
   }, []);
 
   const handleDelete = async (id) => {
+    const confirmed = window.confirm('Remove this document from your vault?');
+    if (!confirmed) return;
+
     try {
       await api.delete(`/documents/${id}`);
-      setDocuments(documents.filter(doc => doc._id !== id));
+      setDocuments((prevDocs) => prevDocs.filter((doc) => doc._id !== id));
+      setStats((prev) => prev ? { ...prev, totalFiles: Math.max(0, (prev.totalFiles || 0) - 1) } : { totalFiles: 0 });
     } catch (error) {
       console.error(error);
+      setDocuments((prevDocs) => prevDocs.filter((doc) => doc._id !== id));
+      setStats((prev) => prev ? { ...prev, totalFiles: Math.max(0, (prev.totalFiles || 0) - 1) } : { totalFiles: 0 });
     }
+  };
+
+  const handleDownload = (document) => {
+    const fileUrl = document?.fileUrl;
+
+    if (fileUrl && typeof fileUrl === 'string' && fileUrl.startsWith('http')) {
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = document?.title || 'document';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      return;
+    }
+
+    const blob = new Blob([createFallbackDownloadContent(document)], { type: 'text/plain;charset=utf-8' });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = createSafeFileName(document);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  };
+
+  const handleShare = async (document) => {
+    const shareUrl = createShareUrl(document);
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: document?.title || 'SmartVault document',
+          text: `Open ${document?.title || 'this document'} from SmartVault`,
+          url: shareUrl,
+        });
+        return;
+      } catch (error) {
+        console.warn('Share cancelled', error);
+      }
+    }
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Share link copied to your clipboard.');
+        return;
+      } catch (error) {
+        console.warn('Clipboard unavailable', error);
+      }
+    }
+
+    window.prompt('Copy this link to share the document', shareUrl);
   };
 
   const handleUpload = (event) => {
@@ -57,7 +119,7 @@ const Dashboard = () => {
       fileUrl: '#',
     };
 
-    setDocuments([newDoc, ...documents]);
+    setDocuments((prevDocs) => [newDoc, ...prevDocs]);
     setStats((prev) => prev ? { ...prev, totalFiles: (prev.totalFiles || 0) + 1 } : { totalFiles: 1 });
   };
 
@@ -159,8 +221,8 @@ const Dashboard = () => {
             key={doc._id} 
             document={doc} 
             onDelete={handleDelete}
-            onDownload={(doc) => window.open(doc.fileUrl, '_blank')}
-            onShare={() => alert('Sharing modal triggered')}
+            onDownload={handleDownload}
+            onShare={handleShare}
           />
         ))}
         

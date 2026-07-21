@@ -24,13 +24,20 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
   return (
     <motion.div
       className="glass-panel"
-      style={{ padding: '20px', position: 'relative', cursor: 'pointer' }}
+      style={{
+        padding: '20px',
+        position: 'relative',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        border: '1px solid rgba(255,255,255,0.08)',
+        minHeight: '220px',
+        transformOrigin: 'center center',
+      }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -6, scale: 1.02 }}
+      whileHover={{ y: -8, scale: 1.04, boxShadow: '0 18px 36px rgba(15, 23, 42, 0.18)' }}
       transition={{ type: 'spring', stiffness: 260, damping: 20 }}
     >
-      
       <div className="flex-between" style={{ marginBottom: '16px' }}>
         <div style={{
           width: '48px', height: '48px',
@@ -40,7 +47,7 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
         }}>
           {getIcon(document.format)}
         </div>
-        <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+        <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
           <MoreVertical size={18} />
         </button>
       </div>
@@ -59,13 +66,13 @@ const DocumentCard = ({ document, onShare, onDelete, onDownload }) => {
       </div>
 
       <div style={{ marginTop: '20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-        <button className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)' }} onClick={() => onDownload(document)}>
+        <button type="button" className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)' }} onClick={(event) => { event.stopPropagation(); onDownload(document); }}>
           <Download size={14} />
         </button>
-        <button className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)' }} onClick={() => onShare(document)}>
+        <button type="button" className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)' }} onClick={(event) => { event.stopPropagation(); onShare(document); }}>
           <Share2 size={14} />
         </button>
-        <button className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-red)' }} onClick={() => onDelete(document._id)}>
+        <button type="button" className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-red)' }} onClick={(event) => { event.stopPropagation(); onDelete(document._id); }}>
           <Trash2 size={14} />
         </button>
       </div>
