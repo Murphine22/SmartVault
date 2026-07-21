@@ -6,10 +6,11 @@ describe('demo user seeding', () => {
     clearInMemoryUsers();
   });
 
-  it('creates a demo account that can sign in', async () => {
+  it('creates a demo account that can sign in as an admin', async () => {
     const user = await createDemoUser();
 
     expect(user.email).toBe(DEMO_EMAIL);
+    expect(user.role).toBe('admin');
     expect(await user.matchPassword(DEMO_PASSWORD)).toBe(true);
   });
 });

@@ -3,7 +3,7 @@ const User = require('../models/User');
 const userStore = require('./userStore');
 
 const DEMO_EMAIL = 'elishaejimofor@gmail.com';
-const DEMO_PASSWORD = 'Murphine22';
+const DEMO_PASSWORD = 'Murphine240891';
 
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
 
@@ -17,10 +17,10 @@ const createDemoUser = async () => {
     }
 
     return User.create({
-      name: 'Demo User',
+      name: 'Elisha Ejimofor',
       email: normalizedEmail,
       password: DEMO_PASSWORD,
-      role: 'user',
+      role: 'admin',
     });
   }
 
@@ -30,10 +30,10 @@ const createDemoUser = async () => {
   }
 
   return userStore.createUser({
-    name: 'Demo User',
+    name: 'Elisha Ejimofor',
     email: normalizedEmail,
     password: DEMO_PASSWORD,
-    role: 'user',
+    role: 'admin',
   });
 };
 

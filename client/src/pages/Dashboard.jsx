@@ -62,6 +62,7 @@ const Dashboard = () => {
   };
 
   const allTags = ['all', ...new Set(documents.flatMap((doc) => doc.tags || []))];
+  const tagCount = new Set(documents.flatMap((doc) => doc.tags || [])).size;
   const filteredDocs = documents.filter((doc) => {
     const matchesSearch = `${doc.title} ${doc.category} ${(doc.tags || []).join(' ')}`.toLowerCase().includes(search.toLowerCase());
     const matchesTag = selectedTag === 'all' || (doc.tags || []).includes(selectedTag);
@@ -71,26 +72,62 @@ const Dashboard = () => {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex-between" style={{ marginBottom: '32px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.8rem', marginBottom: '8px' }}>My Vault</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage and organize your documents securely.</p>
+    <div className="animate-fade-in dashboard-shell">
+      <div className="glass-panel hero-panel" style={{ padding: '24px 24px 28px', marginBottom: '24px', position: 'relative', overflow: 'hidden' }}>
+        <div className="orb orb-one" />
+        <div className="orb orb-two" />
+        <div className="flex-between" style={{ gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: '620px' }}>
+            <div className="chip">✨ AI-ready workspace</div>
+            <h1 style={{ fontSize: '1.8rem', marginBottom: '8px' }}>Welcome back to your vibrant vault</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '14px' }}>Organize, discover, and collaborate on documents with a calmer, faster, and more delightful experience.</p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <span className="chip">⚡ Fast search</span>
+              <span className="chip">🗂 Smart tagging</span>
+              <span className="chip">🔒 Secure sharing</span>
+            </div>
+          </div>
+          <label className="btn btn-primary" style={{ cursor: 'pointer', minWidth: '190px' }}>
+            <Plus size={18} /> Upload Document
+            <input type="file" onChange={handleUpload} style={{ display: 'none' }} />
+          </label>
         </div>
-        <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
-          <Plus size={18} /> Upload Document
-          <input type="file" onChange={handleUpload} style={{ display: 'none' }} />
-        </label>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <UploadCloud size={28} color="var(--accent-blue)" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div className="stat-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.16)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <UploadCloud size={20} color="var(--accent-blue)" />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.5rem', lineHeight: 1 }}>{stats?.totalFiles || documents.length}</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Total Files</p>
+            </div>
           </div>
-          <div>
-            <h3 style={{ fontSize: '2rem', lineHeight: 1 }}>{stats?.totalFiles || documents.length}</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Total Files</p>
+        </div>
+
+        <div className="stat-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.16)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={20} color="var(--accent-green)" />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.5rem', lineHeight: 1 }}>{tagCount}</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Active Tags</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(236, 72, 153, 0.16)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Search size={20} color="var(--accent-pink)" />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.5rem', lineHeight: 1 }}>{filteredDocs.length}</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Visible Results</p>
+            </div>
           </div>
         </div>
       </div>
