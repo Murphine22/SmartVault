@@ -10,7 +10,6 @@
     "preview": "vite preview --port 3000"
   },
   "dependencies": {
-    "@auth0/auth0-react": "^2.22.0",
     "axios": "^1.4.0",
     "framer-motion": "^10.12.16",
     "lucide-react": "^0.268.0",

@@ -4,28 +4,27 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const connectDB = require('./config/db');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const cookieParser = require('cookie-parser');
-const { createDemoUser } = require('./utils/demoUser');
+const { initializeServer } = require('./utils/bootstrap');
 
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
-
-// Seed a demo account for quick access
-createDemoUser().catch((error) => {
-  console.warn('Unable to create demo user:', error.message);
+// Connect to MongoDB and seed a demo account for quick access
+initializeServer().catch((error) => {
+  console.warn('Unable to initialize server bootstrap:', error.message);
 });
 
 const app = express();
 
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));

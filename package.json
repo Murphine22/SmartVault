@@ -13,6 +13,7 @@
   "dependencies": {
     "@auth0/auth0-react": "^2.22.0",
     "concurrently": "^8.2.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -26,5 +27,17 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Murphine22/SmartVault.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Murphine22/SmartVault/issues"
+  },
+  "homepage": "https://github.com/Murphine22/SmartVault#readme"
 }

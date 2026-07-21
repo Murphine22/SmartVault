@@ -18,7 +18,7 @@ Welcome to SmartVault, a premium, secure, and visually stunning Full-Stack Docum
 
 - **Frontend**: React, Vite, React Router, Axios, Lucide React (Icons), Vanilla CSS (Custom Variables, Flex/Grid, Keyframes).
 - **Backend**: Node.js, Express, Mongoose, MongoDB.
-- **Authentication**: JWT, bcryptjs, @auth0/auth0-react.
+- **Authentication**: JWT and bcryptjs.
 - **File Management**: Multer, Cloudinary SDK.
 
 ## 🚀 Setup Guide
