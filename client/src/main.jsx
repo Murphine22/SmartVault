@@ -6,6 +6,9 @@ import { AuthProvider } from './context/AuthContext';
 import App from './App';
 import './index.css';
 
+const savedTheme = localStorage.getItem('smartvault-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
 const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || 'example.auth0.com';
 const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID || 'exampleClientId';
 

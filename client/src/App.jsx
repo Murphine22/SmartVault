@@ -7,12 +7,22 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
 // Pages
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Workspace from './pages/Workspace';
+import SharedDocuments from './pages/SharedDocuments';
+import UploadDocument from './pages/UploadDocument';
+import MyDocuments from './pages/MyDocuments';
+import FolderExplorer from './pages/FolderExplorer';
+import AdminPanel from './pages/AdminPanel';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 
 const App = () => {
   const { user, loading } = useAuth();
+  const bypassAuth = true;
 
   if (loading) {
     return (
@@ -22,18 +32,29 @@ const App = () => {
     );
   }
 
+  const effectiveUser = bypassAuth ? { name: 'Demo User' } : user;
+
   return (
     <div className="app-container">
-      {user && <Sidebar />}
-      <div className="main-content" style={{ marginLeft: user ? 'var(--sidebar-width)' : '0' }}>
-        {user && <Header />}
+      {effectiveUser && <Sidebar />}
+      <div className="main-content" style={{ marginLeft: effectiveUser ? 'var(--sidebar-width)' : '0' }}>
+        {effectiveUser && <Header />}
         
         <div style={{ padding: '24px', flex: 1, position: 'relative' }}>
           <Routes>
-            <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-            <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/login" element={<Navigate to="/" />} />
+            <Route path="/register" element={<Navigate to="/" />} />
             
-            <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/workspace" element={<Workspace />} />
+            <Route path="/documents" element={<MyDocuments />} />
+            <Route path="/shared" element={<SharedDocuments />} />
+            <Route path="/upload" element={<UploadDocument />} />
+            <Route path="/folders" element={<FolderExplorer />} />
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
             
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" />} />

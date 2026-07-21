@@ -8,12 +8,18 @@ const connectDB = require('./config/db');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const cookieParser = require('cookie-parser');
+const { createDemoUser } = require('./utils/demoUser');
 
 // Load environment variables
 dotenv.config();
 
 // Connect to MongoDB
 connectDB();
+
+// Seed a demo account for quick access
+createDemoUser().catch((error) => {
+  console.warn('Unable to create demo user:', error.message);
+});
 
 const app = express();
 
@@ -28,8 +34,13 @@ app.use(morgan('dev'));
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use(limiter);
 
-// Prevent NoSQL injection
-app.use(mongoSanitize());
+// Prevent NoSQL injection (skip req.query — read-only in Express 5)
+app.use((req, res, next) => {
+  ['body', 'params'].forEach((key) => {
+    if (req[key]) req[key] = mongoSanitize.sanitize(req[key]);
+  });
+  next();
+});
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));

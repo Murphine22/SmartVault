@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, Share2, Trash2, Settings, Shield } from 'lucide-react';
+import { LayoutDashboard, FileText, Share2, Trash2, FolderKanban, Upload, FolderTree, Shield, Settings, UserCircle2, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
@@ -8,8 +8,14 @@ const Sidebar = () => {
   
   const navItems = [
     { label: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
-    { label: 'Documents', icon: <FileText size={20} />, path: '/documents' },
+    { label: 'Workspace', icon: <FolderKanban size={20} />, path: '/workspace' },
+    { label: 'My Documents', icon: <FileText size={20} />, path: '/documents' },
     { label: 'Shared', icon: <Share2 size={20} />, path: '/shared' },
+    { label: 'Upload', icon: <Upload size={20} />, path: '/upload' },
+    { label: 'Folders', icon: <FolderTree size={20} />, path: '/folders' },
+    { label: 'Admin', icon: <Crown size={20} />, path: '/admin' },
+    { label: 'Profile', icon: <UserCircle2 size={20} />, path: '/profile' },
+    { label: 'Settings', icon: <Settings size={20} />, path: '/settings' },
     { label: 'Trash', icon: <Trash2 size={20} />, path: '/trash' },
   ];
 
