@@ -26,11 +26,15 @@ const generateRefreshToken = (user) => {
   );
 };
 
-const isDatabaseReady = () => mongoose.connection.readyState === 1;
+const isDatabaseReady = () => mongoose.connection.readyState === 1 && !!mongoose.connection.db;
 
 const createUserRecord = async (userData) => {
   if (isDatabaseReady()) {
-    return User.create(userData);
+    try {
+      return await User.create(userData);
+    } catch (error) {
+      console.warn('MongoDB user creation failed, using in-memory store:', error.message);
+    }
   }
 
   return userStore.createUser(userData);
@@ -38,7 +42,11 @@ const createUserRecord = async (userData) => {
 
 const findUserRecordByEmail = async (email) => {
   if (isDatabaseReady()) {
-    return User.findOne({ email });
+    try {
+      return await User.findOne({ email });
+    } catch (error) {
+      console.warn('MongoDB user lookup failed, using in-memory store:', error.message);
+    }
   }
 
   return userStore.findUserByEmail(email);
@@ -46,7 +54,11 @@ const findUserRecordByEmail = async (email) => {
 
 const findUserRecordById = async (id) => {
   if (isDatabaseReady()) {
-    return User.findById(id);
+    try {
+      return await User.findById(id);
+    } catch (error) {
+      console.warn('MongoDB user lookup failed, using in-memory store:', error.message);
+    }
   }
 
   return userStore.findUserById(id);
@@ -54,9 +66,13 @@ const findUserRecordById = async (id) => {
 
 const saveRefreshToken = async (user, refreshToken) => {
   if (isDatabaseReady()) {
-    user.refreshTokens.push(refreshToken);
-    await user.save();
-    return user;
+    try {
+      user.refreshTokens.push(refreshToken);
+      await user.save();
+      return user;
+    } catch (error) {
+      console.warn('MongoDB refresh token save failed, using in-memory fallback:', error.message);
+    }
   }
 
   return userStore.addRefreshToken(user._id, refreshToken);
@@ -64,9 +80,13 @@ const saveRefreshToken = async (user, refreshToken) => {
 
 const clearRefreshToken = async (user, refreshToken) => {
   if (isDatabaseReady()) {
-    user.refreshTokens = user.refreshTokens.filter((storedToken) => storedToken !== refreshToken);
-    await user.save();
-    return user;
+    try {
+      user.refreshTokens = user.refreshTokens.filter((storedToken) => storedToken !== refreshToken);
+      await user.save();
+      return user;
+    } catch (error) {
+      console.warn('MongoDB refresh token clear failed, using in-memory fallback:', error.message);
+    }
   }
 
   return userStore.removeRefreshToken(user._id, refreshToken);
@@ -121,6 +141,41 @@ exports.registerUser = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to register user', error: error.message });
+  }
+};
+
+exports.inviteMember = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { name, email, role = 'viewer' } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ success: false, message: 'Name and email are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const existingUser = await findUserRecordByEmail(normalizedEmail);
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: 'User already exists' });
+    }
+
+    const tempPassword = `${name.replace(/\s+/g, '').toLowerCase()}123!`;
+    const user = await createUserRecord({
+      name,
+      email: normalizedEmail,
+      password: tempPassword,
+      role: role === 'admin' ? 'admin' : role === 'editor' ? 'user' : 'user',
+    });
+
+    return res.status(201).json({
+      success: true,
+      user: serializeUser(user),
+      temporaryPassword: tempPassword,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to invite member', error: error.message });
   }
 };
 

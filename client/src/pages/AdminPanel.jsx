@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Users, Activity, PlusCircle } from 'lucide-react';
+import api from '../services/api';
 
 const stats = [
   { label: 'Active users', value: '128', icon: Users },
@@ -15,10 +16,23 @@ const AdminPanel = () => {
   ]);
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Viewer' });
 
-  const addMember = () => {
+  const addMember = async () => {
     if (!newMember.name || !newMember.email) return;
-    setMembers([...members, { ...newMember }]);
-    setNewMember({ name: '', email: '', role: 'Viewer' });
+
+    try {
+      const { data } = await api.post('/auth/invite', {
+        name: newMember.name,
+        email: newMember.email,
+        role: newMember.role.toLowerCase(),
+      });
+
+      if (data.success) {
+        setMembers([...members, { ...newMember, email: newMember.email.toLowerCase() }]);
+        setNewMember({ name: '', email: '', role: 'Viewer' });
+      }
+    } catch (error) {
+      console.error('Failed to invite member', error);
+    }
   };
 
   return (
