@@ -22,9 +22,14 @@ const buildMongoUri = () => {
 const connectDB = async () => {
   try {
     const uri = buildMongoUri();
+    console.log(`Attempting MongoDB connection to: ${uri.replace(/:[^:@]+@/, ':***@')}`);
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 20000,
+      socketTimeoutMS: 20000,
+      ssl: true,
+      tls: true,
+      retryWrites: true,
+      w: 'majority',
     });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     return true;
