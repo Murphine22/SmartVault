@@ -13,6 +13,7 @@
   "dependencies": {
     "@auth0/auth0-react": "^2.22.0",
     "concurrently": "^8.2.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "mongoose": "^9.8.0"
   }
 }
