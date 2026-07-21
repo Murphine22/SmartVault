@@ -188,12 +188,16 @@ exports.deleteDocument = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Not authorized' });
     }
 
-    if (req.query.hard === 'true') {
+    const shouldHardDelete = req.query.hard === 'true' || req.query.mode === 'permanent' || true;
+
+    if (shouldHardDelete) {
       if (isDatabaseReady()) {
         try {
-          await cloudinary.uploader.destroy(doc.publicId);
+          if (doc?.publicId) {
+            await cloudinary.uploader.destroy(doc.publicId);
+          }
           await Document.findByIdAndDelete(req.params.id);
-          await Activity.create({ user: req.user._id, action: 'delete', details: `Hard deleted ${doc.title}` });
+          await Activity.create({ user: req.user._id, action: 'delete', details: `Hard deleted ${doc?.title || req.params.id}` });
         } catch (error) {
           console.warn('MongoDB hard delete failed, using fallback store:', error.message);
           await documentStore.deleteDocument(req.params.id);
@@ -215,8 +219,8 @@ exports.deleteDocument = async (req, res) => {
         await documentStore.updateDocument(req.params.id, { isArchived: true });
       }
     }
-    
-    res.json({ success: true, message: 'Document removed' });
+
+    res.json({ success: true, message: 'Document removed permanently' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
