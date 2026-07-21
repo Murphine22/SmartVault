@@ -29,15 +29,22 @@ const generateRefreshToken = (user) => {
 const isDatabaseReady = () => mongoose.connection.readyState === 1 && !!mongoose.connection.db;
 
 const createUserRecord = async (userData) => {
+  const normalizedUserData = {
+    ...userData,
+    email: userData.email?.toLowerCase(),
+    role: userData.role === 'admin' ? 'admin' : 'user',
+  };
+
   if (isDatabaseReady()) {
     try {
-      return await User.create(userData);
+      const createdUser = await User.create(normalizedUserData);
+      return createdUser;
     } catch (error) {
       console.warn('MongoDB user creation failed, using in-memory store:', error.message);
     }
   }
 
-  return userStore.createUser(userData);
+  return userStore.createUser(normalizedUserData);
 };
 
 const findUserRecordByEmail = async (email) => {
@@ -162,12 +169,17 @@ exports.inviteMember = async (req, res) => {
     }
 
     const tempPassword = `${name.replace(/\s+/g, '').toLowerCase()}123!`;
+    const normalizedRole = role === 'admin' ? 'admin' : 'user';
     const user = await createUserRecord({
       name,
       email: normalizedEmail,
       password: tempPassword,
-      role: role === 'admin' ? 'admin' : role === 'editor' ? 'user' : 'user',
+      role: normalizedRole,
     });
+
+    if (!user) {
+      return res.status(500).json({ success: false, message: 'Failed to create invited member' });
+    }
 
     return res.status(201).json({
       success: true,
