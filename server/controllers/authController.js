@@ -191,6 +191,39 @@ exports.inviteMember = async (req, res) => {
   }
 };
 
+exports.listUsers = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    let users = [];
+    if (isDatabaseReady()) {
+      try {
+        users = await User.find({}).select('-password').sort({ createdAt: -1 });
+      } catch (error) {
+        console.warn('MongoDB user list failed, using in-memory store:', error.message);
+        users = await userStore.listUsers();
+      }
+    } else {
+      users = await userStore.listUsers();
+    }
+
+    return res.status(200).json({
+      success: true,
+      users: users.map((user) => ({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role || 'user',
+        createdAt: user.createdAt,
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to load users', error: error.message });
+  }
+};
+
 // Log in an existing user and return a JWT.
 exports.loginUser = async (req, res) => {
   const errors = validationResult(req);

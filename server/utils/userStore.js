@@ -38,6 +38,10 @@ const updateUserProfile = async (id, updates) => {
   return user;
 };
 
+const listUsers = async () => {
+  return users.map((user) => ({ ...user }));
+};
+
 const addRefreshToken = async (id, token) => {
   const user = await findUserById(id);
   if (!user) return null;
@@ -61,6 +65,7 @@ module.exports = {
   findUserByEmail,
   findUserById,
   updateUserProfile,
+  listUsers,
   addRefreshToken,
   removeRefreshToken,
   clearInMemoryUsers,

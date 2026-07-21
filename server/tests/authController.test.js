@@ -1,4 +1,4 @@
-const { createUser, findUserByEmail, findUserById, clearInMemoryUsers } = require('../utils/userStore');
+const { createUser, findUserByEmail, findUserById, listUsers, clearInMemoryUsers } = require('../utils/userStore');
 
 describe('user store fallback', () => {
   beforeEach(() => {
@@ -22,5 +22,8 @@ describe('user store fallback', () => {
 
     const byId = await findUserById(user._id);
     expect(byId.email).toBe('ada@example.com');
+
+    const allUsers = await listUsers();
+    expect(allUsers).toHaveLength(1);
   });
 });

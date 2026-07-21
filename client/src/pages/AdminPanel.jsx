@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ShieldCheck, Users, Activity, PlusCircle } from 'lucide-react';
 import api from '../services/api';
 
@@ -9,12 +9,23 @@ const stats = [
 ];
 
 const AdminPanel = () => {
-  const [members, setMembers] = useState([
-    { name: 'Elisha Ejimofor', role: 'Admin', email: 'elishaejimofor@gmail.com' },
-    { name: 'Maya Chen', role: 'Editor', email: 'maya@smartvault.io' },
-    { name: 'Jordan Lee', role: 'Viewer', email: 'jordan@smartvault.io' },
-  ]);
+  const [members, setMembers] = useState([]);
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Viewer' });
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        const { data } = await api.get('/auth/users');
+        if (data.success) {
+          setMembers(data.users || []);
+        }
+      } catch (error) {
+        console.error('Failed to load users', error);
+      }
+    };
+
+    loadMembers();
+  }, []);
 
   const addMember = async () => {
     if (!newMember.name || !newMember.email) return;
@@ -27,7 +38,15 @@ const AdminPanel = () => {
       });
 
       if (data.success) {
-        setMembers([...members, { ...newMember, email: newMember.email.toLowerCase() }]);
+        setMembers((prevMembers) => [
+          {
+            _id: data.user?._id || `temp-${Date.now()}`,
+            name: newMember.name,
+            email: newMember.email.toLowerCase(),
+            role: newMember.role.toLowerCase() === 'admin' ? 'admin' : 'user',
+          },
+          ...prevMembers,
+        ]);
         setNewMember({ name: '', email: '', role: 'Viewer' });
       }
     } catch (error) {
@@ -70,13 +89,15 @@ const AdminPanel = () => {
       <div className="glass-panel" style={{ padding: '20px' }}>
         <h3 style={{ marginBottom: '10px' }}>Team members</h3>
         <div style={{ display: 'grid', gap: '10px' }}>
-          {members.map((member) => (
-            <div key={member.email} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)' }}>
+          {members.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No users found yet.</p>
+          ) : members.map((member) => (
+            <div key={member._id || member.email} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)' }}>
               <div>
                 <p style={{ fontWeight: 600 }}>{member.name}</p>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{member.email}</p>
               </div>
-              <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{member.role}</span>
+              <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{member.role === 'admin' ? 'Admin' : 'User'}</span>
             </div>
           ))}
         </div>
