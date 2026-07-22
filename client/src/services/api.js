@@ -19,6 +19,10 @@ const api = axios.create({
   withCredentials: true,
 });
 
+if (typeof window !== 'undefined') {
+  console.debug('SmartVault API base URL:', baseUrlWithApi);
+}
+
 // Add a request interceptor to attach the JWT token
 api.interceptors.request.use((config) => {
   const userInfo = localStorage.getItem('userInfo');

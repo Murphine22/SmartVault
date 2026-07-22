@@ -36,12 +36,10 @@ const isAllowedOrigin = (origin) => {
     'https://smartvault.vercel.app',
     process.env.CLIENT_URL,
     process.env.FRONTEND_URL,
-    process.env.VITE_URL,
     process.env.APP_URL,
   ].filter(Boolean);
 
   if (!origin) return true;
-
   if (allowedOrigins.includes(origin)) return true;
 
   return /^(https?:\/\/)(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
@@ -71,8 +69,18 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  }
+  next();
+});
+
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
