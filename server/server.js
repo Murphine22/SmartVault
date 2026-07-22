@@ -43,20 +43,29 @@ const isAllowedOrigin = (origin) => {
 };
 
 // Middleware
-app.use(helmet());
-app.use(cors({
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
+}));
+
+const corsOptions = {
   origin: (origin, callback) => {
     if (isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
 
-    callback(null, false);
+    callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
