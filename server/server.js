@@ -19,19 +19,32 @@ initializeServer().catch((error) => {
 
 const app = express();
 
+const isAllowedOrigin = (origin) => {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://smartvault-gkgv.onrender.com',
+    'https://smartvault.vercel.app',
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+    process.env.VITE_URL,
+    process.env.APP_URL,
+  ].filter(Boolean);
+
+  if (!origin) return true;
+
+  if (allowedOrigins.includes(origin)) return true;
+
+  return /^https:\/\/.*\.vercel\.app$/i.test(origin);
+};
+
 // Middleware
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      process.env.CLIENT_URL,
-    ].filter(Boolean);
-
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }

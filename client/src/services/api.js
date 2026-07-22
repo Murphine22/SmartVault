@@ -1,6 +1,14 @@
 import axios from 'axios';
 
-const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const getDefaultApiUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://smartvault-gkgv.onrender.com';
+  }
+
+  return 'http://localhost:5000';
+};
+
+const rawBaseUrl = import.meta.env.VITE_API_URL || getDefaultApiUrl();
 const normalizedBaseUrl = rawBaseUrl.replace(/\/+$/, '');
 const baseUrlWithApi = normalizedBaseUrl.endsWith('/api')
   ? normalizedBaseUrl

@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const buildMongoUri = () => {
-  if (process.env.MONGODB_URI) {
-    return process.env.MONGODB_URI;
+  if (process.env.MONGODB_URI || process.env.MONGO_URI) {
+    return process.env.MONGODB_URI || process.env.MONGO_URI;
   }
 
   const username = process.env.MONGODB_USERNAME || process.env.MONGODB_CLIENT_ID;
