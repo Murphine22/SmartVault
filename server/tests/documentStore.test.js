@@ -31,4 +31,21 @@ describe('document store fallback', () => {
     expect(deleted).toBe(true);
     expect(await listDocuments({ owner: 'user-1' })).toHaveLength(0);
   });
+
+  it('matches document owners even when values are represented differently', async () => {
+    const ownerId = { toString: () => 'owner-123' };
+
+    await createDocument({
+      title: 'Quarterly Forecast',
+      owner: ownerId,
+      fileUrl: 'https://example.com/forecast.pdf',
+      publicId: 'forecast-1',
+      format: 'pdf',
+      size: 512,
+    });
+
+    const docs = await listDocuments({ owner: 'owner-123' });
+    expect(docs).toHaveLength(1);
+    expect(docs[0].title).toBe('Quarterly Forecast');
+  });
 });

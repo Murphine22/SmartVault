@@ -55,13 +55,17 @@ const AdminPanel = () => {
   };
 
   const removeMember = async (memberId) => {
+    if (!memberId) return;
+
     try {
       const { data } = await api.delete(`/auth/users/${memberId}`);
       if (data.success) {
-        setMembers((prev) => prev.filter((member) => member._id !== memberId));
+        setMembers((prev) => prev.filter((member) => String(member._id) !== String(memberId)));
       }
     } catch (error) {
       console.error('Failed to remove member', error);
+      const message = error?.response?.data?.message || 'Failed to remove member';
+      window.alert(message);
     }
   };
 

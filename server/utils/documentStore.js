@@ -1,5 +1,7 @@
 const documents = [];
 
+const normalizeId = (value) => value?.toString?.() ?? String(value);
+
 const createDocument = async (doc) => {
   const record = {
     _id: `${Date.now()}-${documents.length + 1}`,
@@ -13,7 +15,7 @@ const createDocument = async (doc) => {
 };
 
 const listDocuments = async ({ owner } = {}) => {
-  return documents.filter((doc) => !owner || doc.owner === owner);
+  return documents.filter((doc) => !owner || normalizeId(doc.owner) === normalizeId(owner));
 };
 
 const updateDocument = async (id, updates) => {

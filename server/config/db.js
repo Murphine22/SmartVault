@@ -22,14 +22,13 @@ const buildMongoUri = () => {
 const connectDB = async () => {
   try {
     const uri = buildMongoUri();
-    console.log(`Attempting MongoDB connection to: ${uri.replace(/:[^:@]+@/, ':***@')}`);
+    const isAtlasUri = /mongodb\+srv:\/\//.test(uri) || /mongodb\.net/.test(uri);
     const conn = await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 20000,
       socketTimeoutMS: 20000,
-      ssl: true,
-      tls: true,
       retryWrites: true,
       w: 'majority',
+      ...(isAtlasUri ? { ssl: true, tls: true } : {}),
     });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     return true;

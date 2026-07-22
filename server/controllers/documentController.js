@@ -6,6 +6,38 @@ const documentStore = require('../utils/documentStore');
 
 const isDatabaseReady = () => mongoose.connection.readyState === 1 && !!mongoose.connection.db;
 
+const persistDocumentRecord = async ({ userId, title, description, fileUrl, publicId, format, size, category, tags, accessLevel }) => {
+  const normalizedTags = Array.isArray(tags)
+    ? tags
+    : (tags ? tags.split(',').map((tag) => tag.trim()).filter(Boolean) : []);
+
+  const payload = {
+    title: title || 'Untitled document',
+    description,
+    fileUrl,
+    publicId,
+    format: format || 'file',
+    size,
+    owner: userId,
+    category,
+    tags: normalizedTags,
+    accessLevel,
+  };
+
+  if (isDatabaseReady()) {
+    try {
+      const doc = await Document.create(payload);
+      await Activity.create({ user: userId, action: 'upload', document: doc._id });
+      return { doc, usedFallback: false };
+    } catch (error) {
+      console.warn('MongoDB document create failed, using fallback store:', error.message);
+    }
+  }
+
+  const fallbackDoc = await documentStore.createDocument(payload);
+  return { doc: fallbackDoc, usedFallback: true };
+};
+
 exports.uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -17,19 +49,19 @@ exports.uploadDocument = async (req, res) => {
     const shouldAttemptCloudinary = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_CLOUD_NAME !== 'test' && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_KEY !== 'test' && process.env.CLOUDINARY_API_SECRET && process.env.CLOUDINARY_API_SECRET !== 'test';
 
     if (!shouldAttemptCloudinary) {
-      const fallbackDoc = await documentStore.createDocument({
+      const result = await persistDocumentRecord({
+        userId: req.user._id,
         title: title || req.file.originalname,
         description,
         fileUrl: `https://placehold.co/600x400?text=${encodeURIComponent(title || req.file.originalname)}`,
         publicId: `local-${Date.now()}`,
         format: req.file.originalname.split('.').pop() || 'file',
         size: req.file.size,
-        owner: req.user._id,
         category,
-        tags: tags ? tags.split(',') : [],
+        tags,
         accessLevel,
       });
-      return res.status(201).json({ success: true, data: fallbackDoc, message: 'Stored locally because Cloudinary is not configured for this environment.' });
+      return res.status(201).json({ success: true, data: result.doc, message: 'Stored locally because Cloudinary is not configured for this environment.' });
     }
 
     // Upload to Cloudinary using upload_stream
@@ -37,68 +69,35 @@ exports.uploadDocument = async (req, res) => {
       { resource_type: 'auto', folder: 'smartvault' },
       async (error, result) => {
         if (error) {
-          const fallbackDoc = await documentStore.createDocument({
+          const result = await persistDocumentRecord({
+            userId: req.user._id,
             title: title || req.file.originalname,
             description,
             fileUrl: `https://placehold.co/600x400?text=${encodeURIComponent(title || req.file.originalname)}`,
             publicId: `local-${Date.now()}`,
             format: req.file.originalname.split('.').pop() || 'file',
             size: req.file.size,
-            owner: req.user._id,
             category,
-            tags: tags ? tags.split(',') : [],
+            tags,
             accessLevel,
           });
-          return res.status(201).json({ success: true, data: fallbackDoc, message: 'Stored as a local fallback document because cloud storage is unavailable' });
-        }
-        
-        let doc;
-        if (isDatabaseReady()) {
-          try {
-            doc = await Document.create({
-              title: title || req.file.originalname,
-              description,
-              fileUrl: result.secure_url,
-              publicId: result.public_id,
-              format: result.format || req.file.originalname.split('.').pop(),
-              size: result.bytes,
-              owner: req.user._id,
-              category,
-              tags: tags ? tags.split(',') : [],
-              accessLevel,
-            });
-            await Activity.create({ user: req.user._id, action: 'upload', document: doc._id });
-          } catch (error) {
-            console.warn('MongoDB document create failed, using fallback store:', error.message);
-            doc = await documentStore.createDocument({
-              title: title || req.file.originalname,
-              description,
-              fileUrl: result.secure_url,
-              publicId: result.public_id,
-              format: result.format || req.file.originalname.split('.').pop(),
-              size: result.bytes,
-              owner: req.user._id,
-              category,
-              tags: tags ? tags.split(',') : [],
-              accessLevel,
-            });
-          }
-        } else {
-          doc = await documentStore.createDocument({
-            title: title || req.file.originalname,
-            description,
-            fileUrl: result.secure_url,
-            publicId: result.public_id,
-            format: result.format || req.file.originalname.split('.').pop(),
-            size: result.bytes,
-            owner: req.user._id,
-            category,
-            tags: tags ? tags.split(',') : [],
-            accessLevel,
-          });
+          return res.status(201).json({ success: true, data: result.doc, message: 'Stored as a local fallback document because cloud storage is unavailable' });
         }
 
-        res.status(201).json({ success: true, data: doc });
+        const storedResult = await persistDocumentRecord({
+          userId: req.user._id,
+          title: title || req.file.originalname,
+          description,
+          fileUrl: result.secure_url,
+          publicId: result.public_id,
+          format: result.format || req.file.originalname.split('.').pop(),
+          size: result.bytes,
+          category,
+          tags,
+          accessLevel,
+        });
+
+        res.status(201).json({ success: true, data: storedResult.doc });
       }
     );
     uploadStream.end(req.file.buffer);
@@ -126,16 +125,24 @@ exports.getDocuments = async (req, res) => {
       query.$text = { $search: search };
     }
 
-    let documents;
+    let documents = [];
+    const fallbackDocuments = await documentStore.listDocuments({ owner: req.user._id });
+
     if (isDatabaseReady()) {
       try {
         documents = await Document.find(query).populate('owner', 'name email').sort({ createdAt: -1 });
       } catch (error) {
         console.warn('MongoDB document list failed, using fallback store:', error.message);
-        documents = await documentStore.listDocuments({ owner: req.user._id });
+        documents = fallbackDocuments;
       }
     } else {
-      documents = await documentStore.listDocuments({ owner: req.user._id });
+      documents = fallbackDocuments;
+    }
+
+    if (fallbackDocuments.length) {
+      const seenIds = new Set(documents.map((doc) => String(doc._id)));
+      const mergedFallback = fallbackDocuments.filter((doc) => !seenIds.has(String(doc._id)));
+      documents = [...documents, ...mergedFallback];
     }
 
     res.json({ success: true, data: documents });

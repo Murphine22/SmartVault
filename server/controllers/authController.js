@@ -270,19 +270,27 @@ exports.removeMember = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Member id is required' });
     }
 
+    const isSelfRemoval = String(req.user._id) === String(id);
+    if (isSelfRemoval) {
+      return res.status(400).json({ success: false, message: 'You cannot remove your own admin account' });
+    }
+
     if (isDatabaseReady()) {
       try {
         const removedUser = await User.findByIdAndDelete(id);
-        if (!removedUser) {
-          return res.status(404).json({ success: false, message: 'Member not found' });
+        if (removedUser) {
+          return res.status(200).json({ success: true, message: 'Member removed' });
         }
-        return res.status(200).json({ success: true, message: 'Member removed' });
       } catch (error) {
         console.warn('MongoDB member removal failed, using fallback store:', error.message);
       }
     }
 
-    await userStore.deleteUser(id);
+    const fallbackUser = await userStore.deleteUser(id);
+    if (!fallbackUser) {
+      return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
     return res.status(200).json({ success: true, message: 'Member removed' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to remove member', error: error.message });
