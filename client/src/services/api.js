@@ -16,6 +16,7 @@ const baseUrlWithApi = normalizedBaseUrl.endsWith('/api')
 
 const api = axios.create({
   baseURL: baseUrlWithApi,
+  withCredentials: true,
 });
 
 // Add a request interceptor to attach the JWT token
