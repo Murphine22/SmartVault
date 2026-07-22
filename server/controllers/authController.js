@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const userStore = require('../utils/userStore');
 const { validationResult } = require('express-validator');
 const { sendInvitationEmail } = require('../utils/mailer');
 
@@ -36,68 +35,47 @@ const createUserRecord = async (userData) => {
     role: userData.role === 'admin' ? 'admin' : 'user',
   };
 
-  if (isDatabaseReady()) {
-    try {
-      const createdUser = await User.create(normalizedUserData);
-      return createdUser;
-    } catch (error) {
-      console.warn('MongoDB user creation failed, using in-memory store:', error.message);
-    }
+  if (!isDatabaseReady()) {
+    throw new Error('MongoDB is not available. User registration requires database access.');
   }
 
-  return userStore.createUser(normalizedUserData);
+  return User.create(normalizedUserData);
 };
 
 const findUserRecordByEmail = async (email) => {
-  if (isDatabaseReady()) {
-    try {
-      return await User.findOne({ email });
-    } catch (error) {
-      console.warn('MongoDB user lookup failed, using in-memory store:', error.message);
-    }
+  if (!isDatabaseReady()) {
+    throw new Error('MongoDB is not available. Login requires database access.');
   }
 
-  return userStore.findUserByEmail(email);
+  return await User.findOne({ email });
 };
 
 const findUserRecordById = async (id) => {
-  if (isDatabaseReady()) {
-    try {
-      return await User.findById(id);
-    } catch (error) {
-      console.warn('MongoDB user lookup failed, using in-memory store:', error.message);
-    }
+  if (!isDatabaseReady()) {
+    throw new Error('MongoDB is not available. Authenticated requests require database access.');
   }
 
-  return userStore.findUserById(id);
+  return await User.findById(id);
 };
 
 const saveRefreshToken = async (user, refreshToken) => {
-  if (isDatabaseReady()) {
-    try {
-      user.refreshTokens.push(refreshToken);
-      await user.save();
-      return user;
-    } catch (error) {
-      console.warn('MongoDB refresh token save failed, using in-memory fallback:', error.message);
-    }
+  if (!isDatabaseReady()) {
+    throw new Error('MongoDB is not available. Refresh token save requires database access.');
   }
 
-  return userStore.addRefreshToken(user._id, refreshToken);
+  user.refreshTokens.push(refreshToken);
+  await user.save();
+  return user;
 };
 
 const clearRefreshToken = async (user, refreshToken) => {
-  if (isDatabaseReady()) {
-    try {
-      user.refreshTokens = user.refreshTokens.filter((storedToken) => storedToken !== refreshToken);
-      await user.save();
-      return user;
-    } catch (error) {
-      console.warn('MongoDB refresh token clear failed, using in-memory fallback:', error.message);
-    }
+  if (!isDatabaseReady()) {
+    throw new Error('MongoDB is not available. Refresh token clear requires database access.');
   }
 
-  return userStore.removeRefreshToken(user._id, refreshToken);
+  user.refreshTokens = user.refreshTokens.filter((storedToken) => storedToken !== refreshToken);
+  await user.save();
+  return user;
 };
 
 const serializeUser = (user) => ({
@@ -231,17 +209,11 @@ exports.listUsers = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
-    let users = [];
-    if (isDatabaseReady()) {
-      try {
-        users = await User.find({}).select('-password').sort({ createdAt: -1 });
-      } catch (error) {
-        console.warn('MongoDB user list failed, using in-memory store:', error.message);
-        users = await userStore.listUsers();
-      }
-    } else {
-      users = await userStore.listUsers();
+    if (!isDatabaseReady()) {
+      return res.status(500).json({ success: false, message: 'Database unavailable' });
     }
+
+    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -275,19 +247,12 @@ exports.removeMember = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You cannot remove your own admin account' });
     }
 
-    if (isDatabaseReady()) {
-      try {
-        const removedUser = await User.findByIdAndDelete(id);
-        if (removedUser) {
-          return res.status(200).json({ success: true, message: 'Member removed' });
-        }
-      } catch (error) {
-        console.warn('MongoDB member removal failed, using fallback store:', error.message);
-      }
+    if (!isDatabaseReady()) {
+      return res.status(500).json({ success: false, message: 'Database unavailable' });
     }
 
-    const fallbackUser = await userStore.deleteUser(id);
-    if (!fallbackUser) {
+    const removedUser = await User.findByIdAndDelete(id);
+    if (!removedUser) {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 

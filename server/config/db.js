@@ -33,7 +33,7 @@ const connectDB = async () => {
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     return true;
   } catch (error) {
-    console.warn(`MongoDB unavailable, continuing in authentication fallback mode: ${error.message}`);
+    console.error(`MongoDB connection error: ${error.message}`);
     return false;
   }
 };

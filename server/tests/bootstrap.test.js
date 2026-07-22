@@ -1,10 +1,6 @@
 jest.mock('../config/db', () => jest.fn());
-jest.mock('../utils/demoUser', () => ({
-  createDemoUser: jest.fn(),
-}));
 
 const connectDB = require('../config/db');
-const { createDemoUser } = require('../utils/demoUser');
 const { initializeServer } = require('../utils/bootstrap');
 
 describe('server bootstrap', () => {
@@ -12,21 +8,20 @@ describe('server bootstrap', () => {
     jest.clearAllMocks();
   });
 
-  it('connects to MongoDB before seeding the demo user', async () => {
-    const order = [];
+  it('connects to MongoDB before starting', async () => {
+    connectDB.mockResolvedValue(true);
 
-    connectDB.mockImplementation(async () => {
-      order.push('connect');
-      return true;
-    });
+    const connected = await initializeServer();
 
-    createDemoUser.mockImplementation(async () => {
-      order.push('seed');
-      return true;
-    });
+    expect(connectDB).toHaveBeenCalled();
+    expect(connected).toBe(true);
+  });
 
-    await initializeServer();
+  it('returns false when MongoDB is unavailable', async () => {
+    connectDB.mockResolvedValue(false);
 
-    expect(order).toEqual(['connect', 'seed']);
+    const connected = await initializeServer();
+
+    expect(connected).toBe(false);
   });
 });

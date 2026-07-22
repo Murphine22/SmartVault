@@ -1,5 +1,4 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
@@ -12,7 +11,7 @@ const { initializeServer } = require('./utils/bootstrap');
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB and seed a demo account for quick access
+// Connect to MongoDB before starting the server
 initializeServer().catch((error) => {
   console.warn('Unable to initialize server bootstrap:', error.message);
 });
