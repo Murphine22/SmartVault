@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
+const { seedDemoUser } = require('./utils/demoUserSeed');
 
 // Load environment variables
 dotenv.config();
@@ -18,6 +19,8 @@ const startServer = async () => {
   if (!connected) {
     throw new Error('MongoDB connection failed. Server will not start without database access.');
   }
+
+  await seedDemoUser();
 
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
